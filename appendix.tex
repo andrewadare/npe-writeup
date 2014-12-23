@@ -33,6 +33,7 @@
 
 % Commands, aliases, etc
 \graphicspath{{./figs/}{./}}
+\newcommand{\pt}{p_T}
 \newcommand{\xvec}{\mathbf{x}}
 \newcommand{\rvec}{\mathbf{R}}
 \newcommand{\thetavec}{\mathbf{\theta}}
@@ -41,8 +42,10 @@
 \newcommand{\like}{P(\xvec|\thetavec)}
 \newcommand{\ilike}{P(\xvec_i|\thetavec)}
 \newcommand{\data}{\{\xvec_i\}_{i=1}^m}
-\newcommand{\eptdata}{\xvec^{\mathrm{Y}}}
-\newcommand{\dcadata}{\xvec^{\mathrm{D}}_j}
+\newcommand{\eptdata}{\mathbf{Y}}
+\newcommand{\dcadata}{\mathbf{D}_j}
+\newcommand{\My}{\mathbf{M}_{f}^{\mathbf{(Y)}}}
+\newcommand{\Md}{\mathbf{M}_{f,j}^{\mathbf{(D)}}}
 
 
 \title{\sffamily\bfseries{Appendix on electron unfolding for PRC manuscript}}
@@ -55,24 +58,27 @@
 \section{Appendix: electron unfolding}
 
 \subsection{Introduction}
-The unfolding problem involves inferring the invariant yields of charm and beauty parent hadrons from the observed nonphotonic electron distributions. There are many unfolding algorithms that could be applied to this end, but Bayesian unfolding techniques~\cite{Choudalakis:2012hz} have the important advantage of providing a joint probability density over the model parameters, which are in this case the set of parent hadron yields within each $p_T$ interval. This is in principle the entirety of the available information, in constrast to techniques involving maximum likelihood estimation (MLE) or maximum a posteriori (MAP) estimation which can at best compute only the first two moments of the posterior distribution.
+The unfolding problem involves inferring the invariant yields of charm and beauty parent hadrons from the observed nonphotonic electron distributions. There are many unfolding algorithms that could be applied to this end, but Bayesian unfolding techniques~\cite{Choudalakis:2012hz} have the important advantage of providing a joint probability density over the model parameters, which are in this case the set of parent hadron yields within each $\pt$ interval. This is in principle the entirety of the available information, in constrast to techniques involving maximum likelihood estimation (MLE) or maximum a posteriori (MAP) estimation which can at best compute only the first two moments of the posterior distribution.
 
-Our unfolding method uses the generative approach of modeling a likelihood function and using Bayes' rule to compute the posterior from the likelihood and prior information. This can be contrasted with discriminative approaches, which directly compute estimates of the posterior by optimizing model parameters to the fit the data.
+Our unfolding method uses the generative approach of modeling a likelihood function and then using Bayes' rule 
+\begin{equation}\label{eq:bayesrule}
+  \post = \frac{\prod_{i=1}^m \ilike \prior}{P(\xvec_{1\ldots m})}.
+\end{equation}
+to compute the posterior density $\post$ from the likelihood $\like$ and prior information $\prior$\footnote{The marginal likelihood $P(\xvec_{1\ldots m})$ serves as a normalization constant, since the likelihood function needn't strictly be normalized as a probability distribution. In general, it can be difficult to compute, but here it is computed trivially as described in section~\ref{sec:marg}.}. This can be contrasted with discriminative approaches, which directly compute point estimates as a kind of posterior summary by optimizing model parameters to the fit the data.
 
-The method specifically involves sampling from the posterior using a
-Markov Chain Monte Carlo (MCMC) algorithm, which makes accurate sampling of multidimensional distributions far more efficient than uniform sampling. The MCMC variant used here is an affine-invariant ensemble sampler developed in~\cite{goodman2010} and implemented in~\cite{dfm2013}. It is well-suited to distributions that are highly anisotropic such as spectra which often vary over many orders of magnitude.
+The method used in this paper involves drawing samples from the posterior using a Markov Chain Monte Carlo (MCMC) algorithm, which makes accurate sampling of multidimensional distributions far more efficient than uniform sampling. In implementation, it is in fact the right hand side of equation~\ref{eq:bayesrule} that is sampled. The MCMC variant used here is an affine-invariant ensemble sampler developed in~\cite{goodman2010} and implemented in~\cite{dfm2013}. It is well-suited to distributions that are highly anisotropic such as spectra which often vary over many orders of magnitude.
 
 \subsection{Decay model and matrix normalization}
 The Pythia generator was used to generate parent hadrons. TODO (Darren): Number of events, pythia version and settings, PID selection, kinematic cuts, acceptance cuts, any other details.
 
-The probability for a charm or beauty hadron at a given $p_T$ to decay to an electron at a given $p_T$ (and DCA) is encoded in a matrix whose rows are measurements (e.g. electron $p_T$) and whose columns are intervals in parent hadron $p_T$. Some examples are shown in figure~\ref{fig:mat}.
+The probability for a charm or beauty hadron at a given $\pt$ to decay to an electron at a given $\pt$ (and DCA) is encoded in a matrix whose rows are measurements (e.g. electron $\pt$) and whose columns are intervals in parent hadron $\pt$. Some examples are shown in figure~\ref{fig:mat}.
 \begin{figure}[tb]
   \begin{center}
     \includegraphics[width=0.48\textwidth]{eptmat_b}
     \quad
     \includegraphics[width=0.48\textwidth]{dcamat_b_2}
   \end{center}
-  \caption{Examples of decay matrices produced from pythia events. Left: decay probabilities for b hadrons to electron $p_T$. Right: decay probabilities for b hadrons to electron DCA for electrons in the 2.0-2.5 GeV/$c$ $p_T$ range. The top and side panels show the univariate marginal probability distributions.}
+  \caption{Examples of decay matrices produced from pythia events. Left: $\mathbf{M}_{b}^{\mathbf{(Y)}}$ represents the decay probabilities for b hadrons to electron $\pt$ . Right: decay probabilities for b hadrons to electron DCA for electrons in the 2.0-2.5 GeV/$c$ $\pt$ range ($\mathbf{M}_{b,3}^{\mathbf{(D)}}$). The top and side panels show the univariate marginal probability distributions.}
   \label{fig:mat}
 \end{figure}
 
@@ -81,35 +87,42 @@ Note that the marginal probabilities do not integrate to unity in these matrices
   \begin{center}
     \includegraphics[width=0.98\textwidth]{hpt-gen}
   \end{center}
-  \caption{Transverse momentum of c and b hadrons as generated by pythia. The gray points represent all generated hadrons; the colored points represent hadrons falling within the specified $p_T$ intervals. The columns of each decay matrix is divided by the gray distribution to represent the decay probabilities.}
+  \caption{Transverse momentum of c and b hadrons as generated by pythia. The gray points represent all generated hadrons; the colored points represent hadrons falling within the specified $\pt$ intervals. The columns of each decay matrix is divided by the gray distribution to represent the decay probabilities.}
   \label{fig:gen}
 \end{figure}
 
 
-\subsection{Likelihood function}
-The goal is to evaluate the likelihood $\ilike$ for each of $m$ measurements in the dataset $\data$ which, along with prior information $\prior$, can be used to compute the posterior density $\post$ over invariant yields in each parent hadron $p_T$ bin, here, denoted $\theta$:
-\begin{equation}\label{eq:bayesrule}
-  \post = \frac{\prod_{i=1}^m \ilike \prior}{P(\xvec_{1\ldots m})}.
-\end{equation}
+\subsection{Modeling the likelihood function}
+This analysis is based on a dataset composed of 21 electron invariant yield points $\eptdata$ in the range 1-9 GeV/$c$ and six electron DCA distributions $\dcadata$, where $j$ signifies each electron $\pt$ interval within the range 1-5 GeV/$c$.
 
-This analysis is based on a dataset composed of electron invariant yield points $\eptdata$ and six electron DCA distributions $\dcadata$, where $j$ signifies each electron $p_T$ interval.
-
-The $\eptdata$ dataset has been corrected for background, efficiency, and acceptance, and has been assigned statistical uncertainties that are assumed to be normally distributed and uncorrelated. Thus, the likelihood for $\eptdata$ is modeled as a multivariate Gaussian with diagonal covariance.
+The $\eptdata$ dataset [TODO add ppg077 ref] has been corrected for background, efficiency, and acceptance, and has been assigned statistical uncertainties that are assumed to be normally distributed and uncorrelated. Thus, the likelihood for $\eptdata$ is modeled as a multivariate Gaussian with diagonal covariance.
 
 The DCA datasets, in contrast, each consist of a histogrammed distribution of integer-valued entries, and are thus more appropriately described by a multivariate Poisson distribution.
 
+Our ultimate goal is to accurately approximate the posterior distribution over the parent hadron invariant yields $\thetavec = (\thetavec_c; \thetavec_b)$ by sampling from it. We evaluate the likelihood for each measurement in the datasets $\eptdata$ and $\{\dcadata\}_{j=1}^6$ which, along with prior information $\prior$, can be used to compute the posterior density.
+
 As is customary, the logarithm of the likelihood function is used in practice. The combined (log) likelihood for the data is explicitly
 \begin{equation} \label{eq:logl}
-  \ln \like = \ln P(\eptdata|\thetavec) + \sum_{j=1}^6 \ln P(\dcadata|\thetavec)
+  \ln \like = \sum_{f \in \{c,b\}} 
+  \left\{ \ln P(\eptdata|\thetavec_f) + \sum_{j=1}^6 \ln P(\dcadata|\thetavec_f) \right\}
 \end{equation}
 where
 \begin{equation} \label{eq:llgauss}
-  \ln \like = -\frac{m \log 2\pi}{2} - \frac{m \log \sigma^2}{2} - \frac{1}{2} (\xvec - M \thetavec)^T \Sigma^{-1} (\xvec - M \thetavec) 
+  \ln P(\eptdata|\thetavec_f) = -\frac{m \log 2\pi}{2} - \frac{m \log \sigma^2}{2} - \frac{1}{2} (\xvec - \My \thetavec_f)^T \Sigma^{-1} (\xvec - \My \thetavec_f) 
 \end{equation}
-and
+and for a DCA histogram $\dcadata$ with $N$ bins at $e^{\pm}$ $\pt$ interval $j$,
 \begin{equation} \label{eq:llpoiss}
-  TODO
+\ln P(\dcadata|\thetavec_f) = 
+\sum_{i=1}^{N} \left([\dcadata]_i \ln [\Md \thetavec_f]_i - \ln \Gamma([\dcadata]_i + 1) - [\Md \thetavec_f]_i \right).
 \end{equation}
+
+The likelihood calculation for the DCA datasets requires two additional considerations. First, detector acceptance and efficiency effects are not explicitly accounted for in the DCA distributions. This implies that the total measured yield of signal electrons in each DCA histogram is below what was actually produced, and consequently the measured $\dcadata$ distributions do not match the predictions $\Md \thetavec_f$ in normalization.
+
+Secondly, there are significant background contributions from a variety of sources, as discussed in [TODO: reference where this discussed in the main paper].
+
+To handle the first issue, each prediction $\Md \thetavec_f$ is scaled to exactly match the normalization of $\dcadata$. In this way, only the shape of the prediction is a constraining factor.
+
+To deal with the second, the modeled background (TODO ref figs in main paper) is added to each prediction so that the shape of the background component of the measurement is accounted for.
 
 \subsection{Initialization} \label{sec:mcmc-init}
 The ensemble of 500 Markov Chains or ``walkers'' is initialized around the value of $\thetavec$ generated by pythia. This starting point, $\thetavec_{\mathrm{ini}}$, is shown as the grey curve in figure~\ref{fig:gen}. The walkers are distributed randomly according to a normal distribution centered at $\thetavec_{\mathrm{ini}}$ with $\sigma = 0.1 \thetavec_{\mathrm{ini}}$.
@@ -153,8 +166,10 @@ The sampling algorithm is first run using the initialization scheme described in
 \end{figure}
 The second sampling run is initialized using the results of the first, and the sampling boundary is adjusted accordingly. This time, the parameters begin significantly closer to their optimal values, and after a similar burn-in period of discarded samples, they have drifted to regions of maximal probability and a time series of the mean likelihood shows no long-term increase.
 
-\subsection{Posterior marginalization and statistical uncertainty}
-The outcome of the sampling process is the full joint posterior density $\post$ which is 20 dimensional in this case. A univariate marginal density for each $p_T$ interval is shown in figure~\ref{fig:post}.
+\subsection{Posterior marginalization and statistical uncertainty} \label{sec:marg}
+The outcome of the sampling process is a distribution of $\thetavec$ vectors, which is 20 dimensional in this case. The full joint posterior density $\post$ is created by dividing by the marginal likelihood (the denominator in~\ref{eq:bayesrule}), which is simply taken to be the total number of samples.
+
+A univariate marginal density for each $\pt$ interval is shown in figure~\ref{fig:post}.
 \begin{figure}[tb]
   \begin{center}
     \includegraphics[width=0.98\textwidth]{AuAu200MB/2/posterior}
